@@ -1,0 +1,536 @@
+openapi: 3.0.3
+info:
+  title: Matchmaking Service API
+  version: 1.0.0
+  description: |
+    OpenAPI spec for auth, profiles, matches, and notifications endpoints.
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Auth
+  - name: Profiles
+  - name: Matches
+  - name: Notifications
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    UserIDPath:
+      name: userID
+      in: path
+      required: true
+      schema:
+        type: string
+    NotificationIDPath:
+      name: notificationID
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+    SignupRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    SignupResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+
+    LoginRequest:
+      allOf:
+        - $ref: '#/components/schemas/SignupRequest'
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+
+    LogoutRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    ResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetRequestResponse:
+      type: object
+      properties:
+        reset_token:
+          type: string
+          nullable: true
+
+    ResetConfirmRequest:
+      type: object
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+
+    ChangePasswordRequest:
+      type: object
+      required: [old_password, new_password]
+      properties:
+        old_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+
+    MeResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+
+    Profile:
+      type: object
+      required:
+        [user_id, age, profession, education, income, residency_status, location, marital_status, description]
+      properties:
+        user_id:
+          type: string
+        age:
+          type: integer
+        profession:
+          type: string
+        education:
+          type: string
+        income:
+          type: integer
+        residency_status:
+          type: string
+        location:
+          type: string
+        marital_status:
+          type: string
+        description:
+          type: string
+        hide_contact_info:
+          type: boolean
+        hide_address:
+          type: boolean
+        hide_income:
+          type: boolean
+        hide_visa_status:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProfileListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Profile'
+        page:
+          type: integer
+        size:
+          type: integer
+
+    BrowseProfile:
+      type: object
+      properties:
+        user_id:
+          type: string
+        age:
+          type: integer
+        gender:
+          type: string
+        profession:
+          type: string
+        education:
+          type: string
+        income:
+          type: integer
+        location:
+          type: string
+        residency_status:
+          type: string
+        marital_status:
+          type: string
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    BrowseResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BrowseProfile'
+        page:
+          type: integer
+        size:
+          type: integer
+
+    LikeRequest:
+      type: object
+      required: [liked_user_id]
+      properties:
+        liked_user_id:
+          type: string
+
+    LikeResponse:
+      type: object
+      properties:
+        liked_user_id:
+          type: string
+        matched:
+          type: boolean
+
+    RelationshipsResponse:
+      type: object
+      properties:
+        liked_by:
+          type: array
+          items: { type: string }
+        liked:
+          type: array
+          items: { type: string }
+        mutual_matches:
+          type: array
+          items: { type: string }
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        type:
+          type: string
+          enum: [liked, match, system]
+        title:
+          type: string
+        body:
+          type: string
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+paths:
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Signup with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignupRequest' }
+      responses:
+        '200':
+          description: Created user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SignupResponse' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive access/refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Tokens
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and revoke refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LogoutRequest' }
+      responses:
+        '204':
+          description: Logged out
+
+  /auth/password/reset/request:
+    post:
+      tags: [Auth]
+      summary: Request password reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetRequest' }
+      responses:
+        '200':
+          description: Reset token response
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResetRequestResponse' }
+
+  /auth/password/reset/confirm:
+    post:
+      tags: [Auth]
+      summary: Confirm password reset with token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetConfirmRequest' }
+      responses:
+        '204':
+          description: Password reset complete
+
+  /auth/password/change:
+    post:
+      tags: [Auth]
+      summary: Change password for authenticated user
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '204':
+          description: Password changed
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get authenticated user id
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MeResponse' }
+
+  /profiles/:
+    get:
+      tags: [Profiles]
+      summary: List profiles (paginated)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Profile list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileListResponse' }
+    post:
+      tags: [Profiles]
+      summary: Create own profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Profile' }
+      responses:
+        '201':
+          description: Profile created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+
+  /profiles/{userID}:
+    get:
+      tags: [Profiles]
+      summary: Get profile by user id
+      parameters:
+        - $ref: '#/components/parameters/UserIDPath'
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+    put:
+      tags: [Profiles]
+      summary: Update own profile
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserIDPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Profile' }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+
+  /matches/browse:
+    get:
+      tags: [Matches]
+      summary: Browse and filter profiles
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: min_age
+          in: query
+          schema: { type: integer }
+        - name: max_age
+          in: query
+          schema: { type: integer }
+        - name: gender
+          in: query
+          schema: { type: string }
+        - name: min_income
+          in: query
+          schema: { type: integer }
+        - name: max_income
+          in: query
+          schema: { type: integer }
+        - name: location
+          in: query
+          schema: { type: string }
+        - name: residency_status
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Matching profiles
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BrowseResponse' }
+
+  /matches/like:
+    post:
+      tags: [Matches]
+      summary: Like another profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LikeRequest' }
+      responses:
+        '200':
+          description: Like result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LikeResponse' }
+
+  /matches/relationships:
+    get:
+      tags: [Matches]
+      summary: List liked_by, liked, and mutual matches
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Relationship summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelationshipsResponse' }
+
+  /notifications/unread:
+    get:
+      tags: [Notifications]
+      summary: Fetch unread notifications for authenticated user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Unread notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notification' }
+
+  /notifications/{notificationID}/read:
+    post:
+      tags: [Notifications]
+      summary: Mark notification as read
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NotificationIDPath'
+      responses:
+        '204':
+          description: Marked as read
+        '404':
+          description: Notification not found
